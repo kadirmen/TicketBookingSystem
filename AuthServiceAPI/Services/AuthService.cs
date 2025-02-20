@@ -111,13 +111,16 @@ namespace AuthServiceAPI.Services
             var jwtKey = _config["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key is missing from configuration");
             var tokenExpirationMinutes = int.Parse(_config["Jwt:AccessTokenExpirationMinutes"] ?? "15");
 
+            // 🔥 **TOKEN SÜRESİNİN GERÇEKTEN 1 DAKİKA OLDUĞUNU KONTROL EDELİM**
+            Console.WriteLine($"⚠️ AccessTokenExpirationMinutes Değeri: {tokenExpirationMinutes}");
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(tokenExpirationMinutes),
+                expires: DateTime.UtcNow.AddMinutes(tokenExpirationMinutes), // ✅ TOKEN SÜRESİ BURAYA AYARLANIYOR
                 signingCredentials: creds
             );
 
