@@ -16,18 +16,21 @@ namespace AuthServiceAPI.Controllers
             _authService = authService;
         }
 
-        [HttpPost("register")]
+       [HttpPost("register")]
+        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(object))] // 201 Created belgelendi
+        [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(object))] // 409 Conflict belgelendi
         public async Task<IActionResult> Register([FromBody] UserRegisterDto dto)
         {
             var result = await _authService.Register(dto);
 
             if (result == null) 
             {
-                return Conflict(new { message = "Username already exists" }); // 409 Conflict
+                return Conflict(new { message = "Username already exists" });
             }
 
             return CreatedAtAction(nameof(GetUserById), new { id = result }, new { userId = result });
         }
+
 
 
 
