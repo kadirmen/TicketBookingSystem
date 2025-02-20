@@ -32,7 +32,7 @@ namespace AuthServiceAPI.Services
         }
 
 
-        public async Task<string?> Register(UserRegisterDto dto)
+       public async Task<int?> Register(UserRegisterDto dto)
         {
             var userExists = await _context.Users.AnyAsync(u => u.Username == dto.Username);
             if (userExists) return null; // Kullanıcı zaten varsa null döndür
@@ -46,8 +46,9 @@ namespace AuthServiceAPI.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return user.Id.ToString(); // Kullanıcı ID'sini döndür
+            return user.Id; // ID'yi doğrudan integer olarak döndür
         }
+
 
 
 

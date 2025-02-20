@@ -17,20 +17,18 @@ namespace AuthServiceAPI.Controllers
         }
 
         [HttpPost("register")]
-        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(object))]
-        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(object))]
-        [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(object))]
         public async Task<IActionResult> Register([FromBody] UserRegisterDto dto)
         {
             var result = await _authService.Register(dto);
 
-            if (result == null) // Kullanıcı zaten varsa veya hata varsa
+            if (result == null) 
             {
-                return Conflict(); // 409 Conflict
+                return Conflict(new { message = "Username already exists" }); // 409 Conflict
             }
 
-            return CreatedAtAction(nameof(GetUserById), new { id = result });
+            return CreatedAtAction(nameof(GetUserById), new { id = result }, new { userId = result });
         }
+
 
 
 
