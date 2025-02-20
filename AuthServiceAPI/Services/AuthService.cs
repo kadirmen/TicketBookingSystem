@@ -20,10 +20,22 @@ namespace AuthServiceAPI.Services
             _config = config;
         }
 
-        public async Task<string> Register(UserRegisterDto dto)
+        public async Task<UserDto?> GetUserById(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+            {
+                return null;
+            }
+
+            return new UserDto { Username = user.Username };
+        }
+
+
+        public async Task<string?> Register(UserRegisterDto dto)
         {
             var userExists = await _context.Users.AnyAsync(u => u.Username == dto.Username);
-            if (userExists) return "User already exists";
+            if (userExists) return null; // Kullanıcı zaten varsa null döndür
 
             var user = new User
             {
@@ -34,8 +46,10 @@ namespace AuthServiceAPI.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return $"User registered successfully with ID: {user.Id}";
+            return user.Id.ToString(); // Kullanıcı ID'sini döndür
         }
+
+
 
       public async Task<AuthResponseDto?> Login(UserLoginDto dto)
         {

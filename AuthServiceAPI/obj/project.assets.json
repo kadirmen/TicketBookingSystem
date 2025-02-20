@@ -3229,11 +3229,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/AuthServiceAPI.csproj",
+      "projectUniqueName": "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/AuthServiceAPI.csproj",
       "projectName": "AuthServiceAPI",
-      "projectPath": "/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/AuthServiceAPI.csproj",
+      "projectPath": "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/AuthServiceAPI.csproj",
       "packagesPath": "/Users/babax/.nuget/packages/",
-      "outputPath": "/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/obj/",
+      "outputPath": "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/babax/.nuget/NuGet/NuGet.Config"

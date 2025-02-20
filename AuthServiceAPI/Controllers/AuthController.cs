@@ -17,17 +17,34 @@ namespace AuthServiceAPI.Controllers
         }
 
         [HttpPost("register")]
+        [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(object))]
+        [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(object))]
         public async Task<IActionResult> Register([FromBody] UserRegisterDto dto)
         {
             var result = await _authService.Register(dto);
 
-            if (result.Contains("exists"))
+            if (result == null) // Kullanıcı zaten varsa veya hata varsa
             {
-                return BadRequest(new { message = result });
+                return Conflict(); // 409 Conflict
             }
 
-            var id = result.Split("ID: ").Last();
-            return CreatedAtAction(nameof(Register), new { id }, new { message = "User registered successfully", id });
+            return CreatedAtAction(nameof(GetUserById), new { id = result });
+        }
+
+
+
+        [HttpGet("user/{id:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(UserDto))]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetUserById(int id)
+        {
+            var user = await _authService.GetUserById(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+            return Ok(user);
         }
 
 
@@ -44,7 +61,6 @@ namespace AuthServiceAPI.Controllers
                 userId = result.UserId 
             });
         }
-
 
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
