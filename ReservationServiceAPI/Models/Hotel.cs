@@ -1,12 +1,25 @@
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 public class Hotel
 {
-    public required string Id { get; set; }
+    [Key] // Primary Key olarak belirtiyoruz
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)] // PostgreSQL'de otomatik ID oluşturması için
+    public string Id { get; set; } = Guid.NewGuid().ToString(); // Elasticsearch ve PostgreSQL için ortak ID
+
     public required string Name { get; set; }
+
+    
     public required string Location { get; set; }
-    public double Rating { get; set; }
 
-    // Yeni: Otel Özelliklerini Liste Olarak Tutuyoruz
-    public required List<string> Tags { get; set; } // Örnek: ["İslamik Otel", "Evcil Hayvan Dostu", "Balayı Oteli"]
+    public double Rating { get; set; } = 0.0;
 
-    public required List<string> Amenities { get; set; } // Örnek: ["Havuz", "Spa", "Ücretsiz WiFi"]
+    // JSON olarak saklamak için (PostgreSQL desteği ile)
+   
+    [Column(TypeName = "text[]")]
+    public List<string> Tags { get; set; } = new();
+
+    [Column(TypeName = "text[]")]
+    public List<string> Amenities { get; set; } = new();
 }

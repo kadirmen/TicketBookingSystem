@@ -22,6 +22,16 @@ public class HotelController : ControllerBase
         return success ? CreatedAtAction(nameof(GetAllHotels), new { id = hotel.Id }, hotel) : BadRequest("Hotel could not be indexed.");
     }
 
+    [HttpPost("migrate")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> MigrateHotelsToPostgres()
+    {
+        var success = await _hotelService.MigrateHotelsToPostgres();
+        return success ? Ok("Tüm oteller PostgreSQL'e taşındı.") : BadRequest("Veri aktarımı başarısız.");
+    }
+
+
+
     [HttpGet]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetAllHotels()

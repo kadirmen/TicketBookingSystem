@@ -13,7 +13,7 @@ var jwtKey = configuration["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Ke
 var jwtIssuer = configuration["Jwt:Issuer"] ?? "DefaultIssuer";
 var jwtAudience = configuration["Jwt:Audience"] ?? "DefaultAudience";
 
-// 📌 Authentication & Authorization (AuthServiceAPI ile Aynı)
+// 📌 Authentication & Authorization (JWT Kullanımı)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -35,13 +35,15 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("UserPolicy", policy => policy.RequireRole("User"));
 });
 
-// 📌 PostgreSQL Bağlantısı
+// 📌 PostgreSQL Bağlantısı (EF Core Kullanımı)
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection") ?? throw new ArgumentNullException("Connection string is missing")));
+    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new ArgumentNullException("Connection string is missing")));
 
 // 📌 ElasticSearch Client Ayarları
 var elasticSettings = new ConnectionSettings(new Uri(configuration["ElasticSearch:Url"]))
     .DefaultIndex(configuration["ElasticSearch:Index"]);
+
 var elasticClient = new ElasticClient(elasticSettings);
 builder.Services.AddSingleton<IElasticClient>(elasticClient);
 
@@ -53,7 +55,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ReservationServiceAPI", Version = "v1" });
 
-    // 📌 Bearer Token Desteği Ekleniyor
+    // 📌 Bearer Token Kullanımı İçin Yetkilendirme Seçenekleri
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -80,21 +82,25 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// 📌 Controller Desteği
+// 📌 Controller Desteği ve API Endpoints
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
+// 📌 Swagger ve UI Ayarları (Sadece Development Ortamında Açık)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+// 📌 Kimlik Doğrulama ve Yetkilendirme Middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
+// 📌 Controller'ları Haritalandır
 app.MapControllers();
 
+// 📌 Uygulamayı Çalıştır
 app.Run();

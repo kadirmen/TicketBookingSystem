@@ -8,4 +8,5 @@ public interface IHotelService
     Task<List<Hotel>> GetAllHotelsAsync();
     Task<bool> UpdateHotelAsync(Hotel hotel);
     Task<bool> DeleteHotelAsync(string id);
+    Task<bool> MigrateHotelsToPostgres();
 }
