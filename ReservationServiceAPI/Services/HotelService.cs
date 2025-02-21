@@ -190,4 +190,62 @@ public class HotelService : IHotelService
         }
     }
 
+    public async Task<bool> MigrateHotelsToElasticSearch()
+    {
+        try
+        {
+            Console.WriteLine("PostgreSQL'den veriler alınıyor...");
+            
+            var hotels = await _dbContext.Hotels.ToListAsync();
+            if (!hotels.Any())
+            {
+                Console.WriteLine("PostgreSQL'de hiç otel bulunamadı.");
+                return false;
+            }
+
+            Console.WriteLine($"{hotels.Count} otel bulundu, Elasticsearch'e aktarılıyor...");
+
+            foreach (var hotel in hotels)
+            {
+                // 1️⃣ Elasticsearch'te bu otelin olup olmadığını kontrol et
+                var existingHotel = await _elasticClient.GetAsync<Hotel>(hotel.Id, g => g.Index(IndexName));
+
+                if (existingHotel.Found)
+                {
+                    // 🔹 Eğer otel zaten varsa, güncelle
+                    var updateResponse = await _elasticClient.UpdateAsync<Hotel>(hotel.Id, u => u
+                        .Index(IndexName)
+                        .Doc(hotel)
+                    );
+
+                    if (!updateResponse.IsValid)
+                    {
+                        Console.WriteLine($"Güncelleme hatası! Otel ID: {hotel.Id}, Hata: {updateResponse.OriginalException?.Message}");
+                    }
+                }
+                else
+                {
+                    // 🔹 Eğer otel yoksa, yeni ekle
+                    var addResponse = await _elasticClient.IndexAsync(hotel, idx => idx.Index(IndexName));
+
+                    if (!addResponse.IsValid)
+                    {
+                        Console.WriteLine($"Ekleme hatası! Otel ID: {hotel.Id}, Hata: {addResponse.OriginalException?.Message}");
+                    }
+                }
+            }
+
+            Console.WriteLine("Tüm oteller Elasticsearch'e başarıyla aktarıldı!");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hata (MigrateHotelsToElasticSearch): {ex.Message}");
+            return false;
+        }
+    }
+
+
+
+
 }

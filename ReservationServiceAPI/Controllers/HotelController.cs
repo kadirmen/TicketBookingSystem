@@ -29,6 +29,14 @@ public class HotelController : ControllerBase
         var success = await _hotelService.MigrateHotelsToPostgres();
         return success ? Ok("Tüm oteller PostgreSQL'e taşındı.") : BadRequest("Veri aktarımı başarısız.");
     }
+    [HttpPost("migrate-to-elastic")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> MigrateHotelsToElasticSearch()
+    {
+        var success = await _hotelService.MigrateHotelsToElasticSearch();
+        return success ? Ok("Tüm oteller Elasticsearch'e aktarıldı.") : BadRequest("Veri aktarımı başarısız.");
+    }
+
 
 
 

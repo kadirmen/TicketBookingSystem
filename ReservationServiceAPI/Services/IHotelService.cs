@@ -9,4 +9,6 @@ public interface IHotelService
     Task<bool> UpdateHotelAsync(Hotel hotel);
     Task<bool> DeleteHotelAsync(string id);
     Task<bool> MigrateHotelsToPostgres();
+    Task<bool> MigrateHotelsToElasticSearch();
+
 }
