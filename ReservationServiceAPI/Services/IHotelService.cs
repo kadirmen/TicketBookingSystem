@@ -11,4 +11,6 @@ public interface IHotelService
     Task<bool> MigrateHotelsToPostgres();
     Task<bool> MigrateHotelsToElasticSearch();
 
+    Task<bool> SaveHotelToPostgresAsync(Hotel hotel);
+
 }

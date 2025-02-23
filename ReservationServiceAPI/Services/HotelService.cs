@@ -53,6 +53,7 @@ public class HotelService : IHotelService
                         .Field(h => h.Name)
                         .Field(h => h.Location)
                         .Field(h => h.Tags)
+                        .Field(h => h.Amenities)//sonradan ekledim**
                     )
                     .Query(keyword)
                 )
@@ -68,6 +69,21 @@ public class HotelService : IHotelService
     public async Task<List<Hotel>> GetAllHotelsAsync()
     {
         return await _dbContext.Hotels.ToListAsync();
+    }
+
+      public async Task<bool> SaveHotelToPostgresAsync(Hotel hotel)
+    {
+        try
+        {
+            _dbContext.Hotels.Add(hotel);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hata (SaveHotelToPostgresAsync): {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>
@@ -189,6 +205,8 @@ public class HotelService : IHotelService
             return false;
         }
     }
+
+
 
     public async Task<bool> MigrateHotelsToElasticSearch()
     {

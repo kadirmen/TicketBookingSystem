@@ -14,7 +14,15 @@ public class HotelController : ControllerBase
         _hotelService = hotelService;
     }
 
-    [HttpPost]
+    [HttpPost("only-postgres-save")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AddHotelToPostgres([FromBody] Hotel hotel)
+    {
+        var success = await _hotelService.SaveHotelToPostgresAsync(hotel);
+        return success ? CreatedAtAction(nameof(GetAllHotels), new { id = hotel.Id }, hotel) : BadRequest("Hotel PostgreSQL'e kaydedilemedi.");
+    }
+
+    [HttpPost(" PostgreSQL-and-Elastic-Save")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddHotel([FromBody] Hotel hotel)
     {
@@ -22,14 +30,14 @@ public class HotelController : ControllerBase
         return success ? CreatedAtAction(nameof(GetAllHotels), new { id = hotel.Id }, hotel) : BadRequest("Hotel could not be indexed.");
     }
 
-    [HttpPost("migrate")]
+    [HttpPost("Elastic-to-PostgreSQL-migrate")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> MigrateHotelsToPostgres()
     {
         var success = await _hotelService.MigrateHotelsToPostgres();
         return success ? Ok("Tüm oteller PostgreSQL'e taşındı.") : BadRequest("Veri aktarımı başarısız.");
     }
-    [HttpPost("migrate-to-elastic")]
+    [HttpPost("Postgre-to-Elastic-Migrate")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> MigrateHotelsToElasticSearch()
     {
@@ -37,7 +45,7 @@ public class HotelController : ControllerBase
         return success ? Ok("Tüm oteller Elasticsearch'e aktarıldı.") : BadRequest("Veri aktarımı başarısız.");
     }
 
-
+ 
 
 
     [HttpGet]
@@ -48,7 +56,7 @@ public class HotelController : ControllerBase
         return Ok(hotels);
     }
 
-    [HttpGet("search")]
+    [HttpGet("search-Elastic")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> SearchHotels([FromQuery] string keyword)
     {
