@@ -110,13 +110,19 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // 📌 Controller'ları Haritalandır
+// 📌 Controller'ları Haritalandır
 app.MapControllers();
 
-// 📌 RabbitMQ Consumer'ı Başlat
+// 📌 RabbitMQ Consumer'ları Başlat
 var rabbitMQConsumer = new RabbitMQConsumer(elasticClient);
-var AddHotelConsumer = new AddHotelConsumer(elasticClient);
+var addHotelConsumer = new AddHotelConsumer(elasticClient);
+var updateHotelConsumer = new UpdateHotelConsumer(elasticClient);
+
 Task.Run(() => rabbitMQConsumer.StartListening());
-Task.Run(() => AddHotelConsumer.StartListening());
+Task.Run(() => addHotelConsumer.StartListening());
+Task.Run(() => updateHotelConsumer.StartListening());
 
 // 📌 Uygulamayı Çalıştır
 app.Run();
+
+

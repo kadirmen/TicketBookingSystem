@@ -92,11 +92,11 @@ public class HotelService : IHotelService
     /// <summary>
     /// Otel güncelleme işlemi: PostgreSQL ve Elasticsearch üzerinde güncellenir.
     /// </summary>
-    public async Task<bool> UpdateHotelAsync(Hotel hotel)
+   public async Task<bool> UpdateHotelAsync(Hotel hotel)
     {
         try
         {
-            // 1️⃣ PostgreSQL'de güncelle
+            // 1️⃣ PostgreSQL'de oteli güncelle
             var existingHotel = await _dbContext.Hotels.FindAsync(hotel.Id);
             if (existingHotel == null) return false;
 
@@ -109,13 +109,10 @@ public class HotelService : IHotelService
             _dbContext.Hotels.Update(existingHotel);
             await _dbContext.SaveChangesAsync();
 
-            // 2️⃣ Elasticsearch'te güncelle
-            var response = await _elasticClient.UpdateAsync<Hotel>(hotel.Id, u => u
-                .Index(IndexName)
-                .Doc(hotel)
-            );
+            // 2️⃣ RabbitMQ aracılığıyla güncelleme mesajını gönder
+            _rabbitMQPublisher.PublishUpdateHotelEvent(hotel);
 
-            return response.IsValid;
+            return true;
         }
         catch (Exception ex)
         {

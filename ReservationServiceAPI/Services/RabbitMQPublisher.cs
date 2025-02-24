@@ -56,5 +56,28 @@ public class RabbitMQPublisher
 
         Console.WriteLine($" [x] RabbitMQ'ya otel ekleme mesajı gönderildi: {message}");
     }
+    public void PublishUpdateHotelEvent(Hotel hotel)
+    {
+        using var connection = _factory.CreateConnection();
+        using var channel = connection.CreateModel();
+
+        channel.QueueDeclare(queue: "update_hotel_queue",
+                            durable: false,
+                            exclusive: false,
+                            autoDelete: false,
+                            arguments: null);
+
+        // Güncellenmiş otel nesnesini JSON formatına çeviriyoruz.
+        var message = JsonConvert.SerializeObject(hotel);
+        var body = Encoding.UTF8.GetBytes(message);
+
+        channel.BasicPublish(exchange: "",
+                            routingKey: "update_hotel_queue",
+                            basicProperties: null,
+                            body: body);
+
+        Console.WriteLine($" [x] RabbitMQ'ya otel güncelleme mesajı gönderildi: {message}");
+    }
+
 
 }
