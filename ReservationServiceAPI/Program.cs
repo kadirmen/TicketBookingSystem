@@ -114,7 +114,9 @@ app.MapControllers();
 
 // 📌 RabbitMQ Consumer'ı Başlat
 var rabbitMQConsumer = new RabbitMQConsumer(elasticClient);
+var AddHotelConsumer = new AddHotelConsumer(elasticClient);
 Task.Run(() => rabbitMQConsumer.StartListening());
+Task.Run(() => AddHotelConsumer.StartListening());
 
 // 📌 Uygulamayı Çalıştır
 app.Run();
