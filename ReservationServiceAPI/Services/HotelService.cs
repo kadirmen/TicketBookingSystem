@@ -26,14 +26,14 @@ public class HotelService : IHotelService
     {
         try
         {
-            // 1️⃣ PostgreSQL'e ekle
+            // 1️⃣ Oteli PostgreSQL'e kaydet
             _dbContext.Hotels.Add(hotel);
             await _dbContext.SaveChangesAsync();
 
-            // 2️⃣ Elasticsearch'e ekle
-            var response = await _elasticClient.IndexAsync(hotel, idx => idx.Index(IndexName));
+            // 2️⃣ RabbitMQ aracılığıyla otel ekleme mesajını gönder
+            _rabbitMQPublisher.PublishAddHotelEvent(hotel);
 
-            return response.IsValid;
+            return true;
         }
         catch (Exception ex)
         {
@@ -41,6 +41,7 @@ public class HotelService : IHotelService
             return false;
         }
     }
+
 
     /// <summary>
     /// Elasticsearch'te otel arama işlemi.
