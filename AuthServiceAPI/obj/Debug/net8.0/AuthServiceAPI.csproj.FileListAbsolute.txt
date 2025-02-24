@@ -233,3 +233,4 @@
 /Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/obj/Debug/net8.0/AuthServiceAPI.pdb
 /Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/obj/Debug/net8.0/AuthServiceAPI.genruntimeconfig.cache
 /Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/obj/Debug/net8.0/ref/AuthServiceAPI.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/obj/Debug/net8.0/AuthServiceAPI.sourcelink.json

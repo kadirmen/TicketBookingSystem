@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj": {}
+    "/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj": {}
   },
   "projects": {
-    "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj": {
+    "/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj",
+        "projectUniqueName": "/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj",
         "projectName": "ReservationServiceAPI",
-        "projectPath": "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj",
+        "projectPath": "/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/ReservationServiceAPI.csproj",
         "packagesPath": "/Users/babax/.nuget/packages/",
-        "outputPath": "/Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/ReservationServiceAPI/obj/",
+        "outputPath": "/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/babax/.nuget/NuGet/NuGet.Config"
@@ -95,9 +95,17 @@
               "target": "Package",
               "version": "[7.17.5, )"
             },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.3, )"
+            },
             "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
               "version": "[8.0.2, )"
+            },
+            "RabbitMQ.Client": {
+              "target": "Package",
+              "version": "[6.2.1, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",

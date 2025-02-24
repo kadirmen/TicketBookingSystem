@@ -4,11 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Nest;
+using RabbitMQ.Client;
+using System;
 
+// 🔹 Uygulama oluştur
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
-// 📌 JWT Ayarlarını Okuma
+// 📌 JWT Ayarlarını Okuma (Eksik olursa hata verir)
 var jwtKey = configuration["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key is missing from configuration");
 var jwtIssuer = configuration["Jwt:Issuer"] ?? "DefaultIssuer";
 var jwtAudience = configuration["Jwt:Audience"] ?? "DefaultAudience";
@@ -41,14 +44,21 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     ?? throw new ArgumentNullException("Connection string is missing")));
 
 // 📌 ElasticSearch Client Ayarları
-var elasticSettings = new ConnectionSettings(new Uri(configuration["ElasticSearch:Url"]))
-    .DefaultIndex(configuration["ElasticSearch:Index"]);
+var elasticSearchUrl = configuration["ElasticSearch:Url"] ?? "http://localhost:9200";  // Varsayılan URL
+var elasticSettings = new ConnectionSettings(new Uri(elasticSearchUrl))
+    .DefaultIndex(configuration["ElasticSearch:Index"] ?? "hotels"); // Varsayılan Index
 
 var elasticClient = new ElasticClient(elasticSettings);
 builder.Services.AddSingleton<IElasticClient>(elasticClient);
 
+// 📌 RabbitMQ Bağlantısı
+var rabbitMQFactory = new ConnectionFactory() { HostName = "localhost" };
+var rabbitMQConnection = rabbitMQFactory.CreateConnection();
+builder.Services.AddSingleton(rabbitMQConnection);
+
 // 📌 Servis Bağımlılıklarını (DI) Kaydetme
 builder.Services.AddScoped<IHotelService, HotelService>();
+builder.Services.AddScoped<RabbitMQPublisher>();
 
 // 📌 Swagger'a JWT Authorization Desteği Ekleme
 builder.Services.AddSwaggerGen(c =>
@@ -101,6 +111,10 @@ app.UseAuthorization();
 
 // 📌 Controller'ları Haritalandır
 app.MapControllers();
+
+// 📌 RabbitMQ Consumer'ı Başlat
+var rabbitMQConsumer = new RabbitMQConsumer(elasticClient);
+Task.Run(() => rabbitMQConsumer.StartListening());
 
 // 📌 Uygulamayı Çalıştır
 app.Run();

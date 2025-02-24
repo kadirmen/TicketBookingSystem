@@ -9,12 +9,14 @@ public class HotelService : IHotelService
 {
     private readonly IElasticClient _elasticClient;
     private readonly AppDbContext _dbContext;
+    private readonly RabbitMQPublisher _rabbitMQPublisher;
     private const string IndexName = "hotels";
 
-    public HotelService(IElasticClient elasticClient, AppDbContext dbContext)
+    public HotelService(AppDbContext dbContext, IElasticClient elasticClient)
     {
-        _elasticClient = elasticClient;
         _dbContext = dbContext;
+        _elasticClient = elasticClient;
+        _rabbitMQPublisher = new RabbitMQPublisher(); // RabbitMQ Publisher'ı başlat
     }
 
     /// <summary>
@@ -128,17 +130,17 @@ public class HotelService : IHotelService
     {
         try
         {
-            // 1️⃣ PostgreSQL'den sil
             var hotel = await _dbContext.Hotels.FindAsync(id);
             if (hotel == null) return false;
 
+            // 1️⃣ PostgreSQL’den sil
             _dbContext.Hotels.Remove(hotel);
             await _dbContext.SaveChangesAsync();
 
-            // 2️⃣ Elasticsearch'ten sil
-            var response = await _elasticClient.DeleteAsync<Hotel>(id, d => d.Index(IndexName));
+            // 2️⃣ RabbitMQ'ya mesaj fırlat
+            _rabbitMQPublisher.PublishDeleteHotelEvent(id);
 
-            return response.IsValid;
+            return true;
         }
         catch (Exception ex)
         {
