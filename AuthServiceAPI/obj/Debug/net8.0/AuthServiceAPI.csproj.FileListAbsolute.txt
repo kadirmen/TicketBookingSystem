@@ -234,3 +234,12 @@
 /Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/obj/Debug/net8.0/AuthServiceAPI.genruntimeconfig.cache
 /Users/babax/Desktop/TicketBookingSystem/TicketBookingSystem/AuthServiceAPI/obj/Debug/net8.0/ref/AuthServiceAPI.dll
 /Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/obj/Debug/net8.0/AuthServiceAPI.sourcelink.json
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/Microsoft.Extensions.Caching.Abstractions.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/Microsoft.Extensions.Caching.StackExchangeRedis.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/Microsoft.Extensions.Logging.Abstractions.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/Microsoft.Extensions.Options.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/Microsoft.Extensions.Primitives.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/Pipelines.Sockets.Unofficial.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/StackExchange.Redis.dll
+/Users/babax/Desktop/TicketBookingSystem/AuthServiceAPI/bin/Debug/net8.0/System.Diagnostics.DiagnosticSource.dll

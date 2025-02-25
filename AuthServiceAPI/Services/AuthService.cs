@@ -1,13 +1,16 @@
+using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 using AuthServiceAPI.Data;
 using AuthServiceAPI.Data.Entities;
 using AuthServiceAPI.Dtos;
-using Microsoft.Extensions.Caching.Distributed; // Redis için gerekli using
 
 namespace AuthServiceAPI.Services
 {
@@ -15,32 +18,25 @@ namespace AuthServiceAPI.Services
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
-        private readonly IDistributedCache _cache; // Redis Cache bağımlılığı
+        private readonly IDatabase _cache;
 
-        public AuthService(AppDbContext context, IConfiguration config, IDistributedCache cache)
+        public AuthService(AppDbContext context, IConfiguration config, IConnectionMultiplexer redis)
         {
             _context = context;
             _config = config;
-            _cache = cache;
+            _cache = redis.GetDatabase();
         }
 
-        // Kullanıcı bilgilerini ID ile almak
         public async Task<UserDto?> GetUserById(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return null;
-            }
-
-            return new UserDto { Username = user.Username };
+            return user == null ? null : new UserDto { Username = user.Username };
         }
 
-        // Kullanıcı kaydı işlemi
         public async Task<int?> Register(UserRegisterDto dto)
         {
-            var userExists = await _context.Users.AnyAsync(u => u.Username == dto.Username);
-            if (userExists) return null;
+            if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
+                return null;
 
             var user = new User
             {
@@ -50,18 +46,16 @@ namespace AuthServiceAPI.Services
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-
             return user.Id;
         }
 
-        // Kullanıcı girişi (JWT ve Refresh Token oluşturma)
         public async Task<AuthResponseDto?> Login(UserLoginDto dto)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == dto.Username);
             if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 return null;
 
-            var token = GenerateJwtToken(user);
+            var accessToken = GenerateJwtToken(user);
             var refreshToken = GenerateRefreshToken();
             var refreshTokenExpirationDays = int.Parse(_config["Jwt:RefreshTokenExpirationDays"] ?? "7");
 
@@ -73,28 +67,35 @@ namespace AuthServiceAPI.Services
             }
             else
             {
-                _context.RefreshTokens.Add(new RefreshToken { Token = refreshToken, Expires = DateTime.UtcNow.AddDays(refreshTokenExpirationDays), User = user });
+                _context.RefreshTokens.Add(new RefreshToken
+                {
+                    Token = refreshToken,
+                    Expires = DateTime.UtcNow.AddDays(refreshTokenExpirationDays),
+                    User = user
+                });
             }
 
             await _context.SaveChangesAsync();
-
-            await StoreAccessTokenInCache(token, user.Id.ToString());
+            await StoreAccessTokenInCache(accessToken, user.Id.ToString());
 
             return new AuthResponseDto
             {
-                AccessToken = token,
+                AccessToken = accessToken,
                 RefreshToken = refreshToken,
                 UserId = user.Id
             };
         }
 
-        // Refresh Token ile yeni Access Token almak
         public async Task<AuthResponseDto?> RefreshToken(string token)
         {
-            var storedToken = await _context.RefreshTokens.Include(rt => rt.User).FirstOrDefaultAsync(rt => rt.Token == token);
-            if (storedToken == null || storedToken.IsExpired) return null;
+            var storedToken = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.Token == token);
 
-            var newToken = GenerateJwtToken(storedToken.User);
+            if (storedToken == null || storedToken.IsExpired)
+                return null;
+
+            var newAccessToken = GenerateJwtToken(storedToken.User);
             var newRefreshToken = GenerateRefreshToken();
             var refreshTokenExpirationDays = int.Parse(_config["Jwt:RefreshTokenExpirationDays"] ?? "7");
 
@@ -102,12 +103,15 @@ namespace AuthServiceAPI.Services
             storedToken.Expires = DateTime.UtcNow.AddDays(refreshTokenExpirationDays);
             await _context.SaveChangesAsync();
 
-            await StoreAccessTokenInCache(newToken, storedToken.User.Id.ToString());
+            await StoreAccessTokenInCache(newAccessToken, storedToken.User.Id.ToString());
 
-            return new AuthResponseDto { AccessToken = newToken, RefreshToken = newRefreshToken };
+            return new AuthResponseDto
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken
+            };
         }
 
-        // JWT Token'ı oluşturma
         private string GenerateJwtToken(User user)
         {
             var claims = new List<Claim>
@@ -132,7 +136,6 @@ namespace AuthServiceAPI.Services
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        // Refresh Token'ı oluşturma
         private string GenerateRefreshToken()
         {
             var randomBytes = new byte[32];
@@ -141,29 +144,43 @@ namespace AuthServiceAPI.Services
             return Convert.ToBase64String(randomBytes);
         }
 
-        // Redis'e Access Token'ı kaydetme
         private async Task StoreAccessTokenInCache(string accessToken, string userId)
         {
             var tokenExpiry = TimeSpan.FromMinutes(int.Parse(_config["Jwt:AccessTokenExpirationMinutes"] ?? "15"));
-            await _cache.SetStringAsync(userId, accessToken, new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = tokenExpiry
-            });
+            await _cache.StringSetAsync($"access_token:{userId}", accessToken, new TimeSpan(tokenExpiry.Ticks));
         }
 
-       public async Task<bool> Logout(string userId, string token)
+        public async Task<bool> Logout(string userId, string token)
         {
-            // Redis'e token'ı kaydediyoruz, böylece bu token geçersiz sayılacak
-            await _cache.SetStringAsync($"invalid_token:{token}", token, new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) // Token'ın geçerliliği ne kadar sürede sonlanacaksa, o kadar süre
-            });
+            var expiryTime = GetTokenExpiry(token);
+            if (expiryTime == null) return false;
 
-            // Redis'teki geçersiz token'ı silme
-            await _cache.RemoveAsync(userId);  // Kullanıcıya ait token'ı Redis'ten silmek
+            var remainingTime = expiryTime.Value - DateTime.UtcNow;
+
+            await _cache.StringSetAsync($"blacklist:{token}", "true", new TimeSpan(remainingTime.Ticks));
+
+            await _cache.KeyDeleteAsync($"access_token:{userId}");
+
+            var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.UserId.ToString() == userId);
+            if (refreshToken != null)
+            {
+                _context.RefreshTokens.Remove(refreshToken);
+                await _context.SaveChangesAsync();
+            }
+
             return true;
         }
 
+        public async Task<bool> IsTokenBlacklisted(string token)
+        {
+            return await _cache.KeyExistsAsync($"blacklist:{token}");
+        }
 
+        private DateTime? GetTokenExpiry(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var jwtToken = tokenHandler.ReadToken(token) as JwtSecurityToken;
+            return jwtToken?.ValidTo;
+        }
     }
 }

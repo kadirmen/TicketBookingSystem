@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using AuthServiceAPI.Dtos;
 using AuthServiceAPI.Services;
+using System.Security.Claims;
+using AuthServiceAPI.Models;
 
 namespace AuthServiceAPI.Controllers
 {
@@ -10,10 +12,12 @@ namespace AuthServiceAPI.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IJwtTokenValidator _jwtValidator;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IJwtTokenValidator jwtValidator)
         {
             _authService = authService;
+            _jwtValidator = jwtValidator;
         }
 
         // Kullanıcı kaydı (Register)
@@ -88,6 +92,28 @@ namespace AuthServiceAPI.Controllers
             }
 
             return Ok(new { message = "Successfully logged out" });
+        }
+
+         [HttpPost("validate")]
+        public IActionResult ValidateToken([FromBody] TokenValidationRequest request)
+        {
+            var claimsPrincipal = _jwtValidator.ValidateToken(request.Token);
+            if (claimsPrincipal == null)
+            {
+                return Unauthorized(new { message = "Invalid token" });
+            }
+
+            var userId = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = claimsPrincipal.FindFirst(ClaimTypes.Role)?.Value;
+
+            return Ok(new { UserId = userId, Role = role });
+        }
+
+        [HttpGet("is-blacklisted")]
+        public async Task<IActionResult> IsTokenBlacklisted([FromQuery] string token)
+        {
+            bool isBlacklisted = await _authService.IsTokenBlacklisted(token);
+            return Ok(isBlacklisted);
         }
 
     }

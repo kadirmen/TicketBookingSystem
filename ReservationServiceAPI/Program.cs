@@ -5,21 +5,64 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Nest;
 using RabbitMQ.Client;
+using StackExchange.Redis;
+using Newtonsoft.Json;
 using System;
+using ReservationServiceAPI.Middleware;
 
 // 🔹 Uygulama oluştur
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
+
+// 📌 Redis Bağlantısı Kur
+var redisConnectionString = configuration["Redis:Connection"] ?? "localhost:6379"; // Varsayılan bağlantı
+var redis = ConnectionMultiplexer.Connect(redisConnectionString);
+builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
+builder.Services.AddSingleton(redis.GetDatabase());
 
 // 📌 JWT Ayarlarını Okuma (Eksik olursa hata verir)
 var jwtKey = configuration["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key is missing from configuration");
 var jwtIssuer = configuration["Jwt:Issuer"] ?? "DefaultIssuer";
 var jwtAudience = configuration["Jwt:Audience"] ?? "DefaultAudience";
 
-// 📌 Authentication & Authorization (JWT Kullanımı)
+// 📌 Authentication & Authorization (JWT Kullanımı ve Redis ile Cacheleme)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = async context =>
+            {
+                var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    var cache = redis.GetDatabase();
+                    var cachedUser = await cache.StringGetAsync($"auth:{token}");
+                    if (!cachedUser.IsNullOrEmpty)
+                    {
+                        var claims = JsonConvert.DeserializeObject<Dictionary<string, string>>(cachedUser);
+                        var identity = new System.Security.Claims.ClaimsIdentity(JwtBearerDefaults.AuthenticationScheme);
+                        foreach (var claim in claims)
+                        {
+                            identity.AddClaim(new System.Security.Claims.Claim(claim.Key, claim.Value));
+                        }
+                        context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
+                        context.Success();
+                    }
+                }
+            },
+            OnTokenValidated = async context =>
+            {
+                var cache = redis.GetDatabase();
+                var token = context.SecurityToken as System.IdentityModel.Tokens.Jwt.JwtSecurityToken;
+                if (token != null)
+                {
+                    var claims = token.Claims.ToDictionary(c => c.Type, c => c.Value);
+                    await cache.StringSetAsync($"auth:{token.RawData}", JsonConvert.SerializeObject(claims), TimeSpan.FromMinutes(10));
+                }
+            }
+        };
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -32,8 +75,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// jwt tokenın valid olup olmadığına ayrı ayrı bak.
-// mesela jwt tokenı redise atıp her istekte gönderecek. her seferinde valid olup olmadığına bakmamız lazım
 builder.Services.AddAuthorization(options => 
 {
     options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin"));
@@ -44,6 +85,13 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(configuration.GetConnectionString("DefaultConnection") 
     ?? throw new ArgumentNullException("Connection string is missing")));
+
+
+builder.Services.AddHttpClient("AuthService", client =>
+{
+    client.BaseAddress = new Uri(configuration["AuthService:BaseUrl"] ?? "http://localhost:5192"); 
+});
+
 
 // 📌 ElasticSearch Client Ayarları
 var elasticSearchUrl = configuration["ElasticSearch:Url"] ?? "http://localhost:9200";  // Varsayılan URL
@@ -98,7 +146,9 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+
 var app = builder.Build();
+app.UseMiddleware<JwtBlacklistMiddleware>();
 
 // 📌 Swagger ve UI Ayarları (Sadece Development Ortamında Açık)
 if (app.Environment.IsDevelopment())
@@ -106,12 +156,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
 // 📌 Kimlik Doğrulama ve Yetkilendirme Middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
-// 📌 Controller'ları Haritalandır
+
 // 📌 Controller'ları Haritalandır
 app.MapControllers();
 
@@ -126,5 +175,3 @@ Task.Run(() => updateHotelConsumer.StartListening());
 
 // 📌 Uygulamayı Çalıştır
 app.Run();
-
-
