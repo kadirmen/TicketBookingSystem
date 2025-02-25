@@ -32,7 +32,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization(options =>
+// jwt tokenın valid olup olmadığına ayrı ayrı bak.
+// mesela jwt tokenı redise atıp her istekte gönderecek. her seferinde valid olup olmadığına bakmamız lazım
+builder.Services.AddAuthorization(options => 
 {
     options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin"));
     options.AddPolicy("UserPolicy", policy => policy.RequireRole("User"));
@@ -57,7 +59,7 @@ var rabbitMQConnection = rabbitMQFactory.CreateConnection();
 builder.Services.AddSingleton(rabbitMQConnection);
 
 // 📌 Servis Bağımlılıklarını (DI) Kaydetme
-builder.Services.AddScoped<IHotelService, HotelService>();
+builder.Services.AddScoped<IHotelsService, HotelsService>();
 builder.Services.AddScoped<RabbitMQPublisher>();
 
 // 📌 Swagger'a JWT Authorization Desteği Ekleme

@@ -12,6 +12,9 @@ public class RabbitMQPublisher
         _factory = new ConnectionFactory() { HostName = "localhost" }; // RabbitMQ Docker ile çalışıyor.
     }
 
+    //her yerde yeni bağlantı oluşturma ** program.cs te uygulama yağa kalkarken configre edicez. singleton vb (DI).
+
+
     public void PublishDeleteHotelEvent(string hotelId)
     {
         using var connection = _factory.CreateConnection();
@@ -33,6 +36,7 @@ public class RabbitMQPublisher
 
         Console.WriteLine($" [x] RabbitMQ'ya mesaj gönderildi: {message}");
     }
+    //masstransit bak ****
 
     public void PublishAddHotelEvent(Hotel hotel)
     {

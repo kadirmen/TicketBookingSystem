@@ -5,14 +5,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using System;
 
-public class HotelService : IHotelService
+
+public class HotelsService : IHotelsService
 {
     private readonly IElasticClient _elasticClient;
     private readonly AppDbContext _dbContext;
     private readonly RabbitMQPublisher _rabbitMQPublisher;
     private const string IndexName = "hotels";
 
-    public HotelService(AppDbContext dbContext, IElasticClient elasticClient)
+    public HotelsService(AppDbContext dbContext, IElasticClient elasticClient)
     {
         _dbContext = dbContext;
         _elasticClient = elasticClient;
@@ -20,7 +21,7 @@ public class HotelService : IHotelService
     }
 
     /// <summary>
-    /// Otel ekleme işlemi: Önce PostgreSQL'e, sonra Elasticsearch'e kaydedilir.
+    /// Otel ekleme işlemi: Önce PostgreSQL'e, sonra Elasticsearch'e event ile kaydedilir.
     /// </summary>
     public async Task<bool> IndexHotelAsync(Hotel hotel)
     {
@@ -69,7 +70,7 @@ public class HotelService : IHotelService
     /// <summary>
     /// Tüm otelleri getir: PostgreSQL'den çekilir.
     /// </summary>
-    public async Task<List<Hotel>> GetAllHotelsAsync()
+    public async Task<List<Hotel>> GetAllHotelsAsync() // *** searching server side pageination
     {
         return await _dbContext.Hotels.ToListAsync();
     }
@@ -120,6 +121,14 @@ public class HotelService : IHotelService
             return false;
         }
     }
+
+
+    public async Task<Hotel?> GetHotelByIdAsync(string id)
+    {
+        return await _dbContext.Hotels.FirstOrDefaultAsync(h => h.Id == id);
+    }
+
+
 
     /// <summary>
     /// Otel silme işlemi: PostgreSQL ve Elasticsearch üzerinden kaldırılır.
