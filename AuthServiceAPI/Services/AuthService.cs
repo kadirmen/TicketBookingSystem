@@ -16,15 +16,17 @@ namespace AuthServiceAPI.Services
 {
     public class AuthService : IAuthService
     {
+        private readonly IJwtTokenValidator _jwtTokenValidator;
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
         private readonly IDatabase _cache;
 
-        public AuthService(AppDbContext context, IConfiguration config, IConnectionMultiplexer redis)
+        public AuthService(AppDbContext context, IConfiguration config, IConnectionMultiplexer redis, IJwtTokenValidator jwtTokenValidator)
         {
             _context = context;
             _config = config;
             _cache = redis.GetDatabase();
+            _jwtTokenValidator = jwtTokenValidator;
         }
 
         public async Task<UserDto?> GetUserById(int id)
@@ -59,6 +61,10 @@ namespace AuthServiceAPI.Services
             var refreshToken = GenerateRefreshToken();
             var refreshTokenExpirationDays = int.Parse(_config["Jwt:RefreshTokenExpirationDays"] ?? "7");
 
+            // Eski token'ı Redis'ten silme
+            var oldTokenKey = $"access_token:{user.Id}";
+            await _cache.KeyDeleteAsync(oldTokenKey);
+
             var existingToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.UserId == user.Id);
             if (existingToken != null)
             {
@@ -86,36 +92,64 @@ namespace AuthServiceAPI.Services
             };
         }
 
-        public async Task<AuthResponseDto?> RefreshToken(string token)
+
+       public async Task<AuthResponseDto?> RefreshToken(string refreshToken)
         {
+            // 1️⃣ Gelen refresh token'i veritabanında ara
             var storedToken = await _context.RefreshTokens
-                .Include(rt => rt.User)
-                .FirstOrDefaultAsync(rt => rt.Token == token);
+                .Include(rt => rt.User) // User bilgilerini de al
+                .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
 
-            if (storedToken == null || storedToken.IsExpired)
-                return null;
+            // 2️⃣ Token geçersiz mi kontrol et
+            if (storedToken == null || storedToken.IsExpired || storedToken.User == null)
+            {
+                return null; // Refresh token bulunamazsa veya süresi dolmuşsa hata döndür
+            }
 
+            var userId = storedToken.User.Id; // 🔥 Burada UserId'yi aldık
+
+            // 3️⃣ Redis’ten eski access_token ve refresh_token'ı temizle
+            await _cache.KeyDeleteAsync($"access_token:{userId}");
+           
+
+            // 4️⃣ Yeni access token ve refresh token oluştur
             var newAccessToken = GenerateJwtToken(storedToken.User);
             var newRefreshToken = GenerateRefreshToken();
-            var refreshTokenExpirationDays = int.Parse(_config["Jwt:RefreshTokenExpirationDays"] ?? "7");
 
+            // 5️⃣ Refresh token süresini belirle ve veritabanında güncelle
+            var refreshTokenExpirationDays = int.Parse(_config["Jwt:RefreshTokenExpirationDays"] ?? "7");
             storedToken.Token = newRefreshToken;
             storedToken.Expires = DateTime.UtcNow.AddDays(refreshTokenExpirationDays);
+            
             await _context.SaveChangesAsync();
 
-            await StoreAccessTokenInCache(newAccessToken, storedToken.User.Id.ToString());
+            // 6️⃣ Yeni tokenları Redis’e kaydet
+            await StoreAccessTokenInCache(newAccessToken, userId.ToString());
 
+            // 7️⃣ Kullanıcıya yeni tokenları döndür
             return new AuthResponseDto
             {
                 AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken
+                RefreshToken = newRefreshToken,
+                UserId = userId // 🔥 Burada doğru UserId'yi gönderiyoruz
             };
         }
+
+        private async Task DeleteOldAccessTokenFromCache(string userId)
+        {
+            var redisKey = $"access_token:{userId}";
+            await _cache.KeyDeleteAsync(redisKey);
+        }
+
 
         private string GenerateJwtToken(User user)
         {
             var claims = new List<Claim>
             {
+                // Burada user.Id'yi, JWT içerisinde 'sub' (subject) olarak ekliyoruz.
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+
+                // Kullanıcı adını ve rolünü de ekliyoruz (varsa)
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, user.Role)
             };
@@ -136,6 +170,7 @@ namespace AuthServiceAPI.Services
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+
         private string GenerateRefreshToken()
         {
             var randomBytes = new byte[32];
@@ -150,17 +185,19 @@ namespace AuthServiceAPI.Services
             await _cache.StringSetAsync($"access_token:{userId}", accessToken, new TimeSpan(tokenExpiry.Ticks));
         }
 
+    
+
         public async Task<bool> Logout(string userId, string token)
         {
-            var expiryTime = GetTokenExpiry(token);
-            if (expiryTime == null) return false;
+            // Token'ın süresi dolmuşsa, herhangi bir işlem yapmaya gerek yok
+            var tokenExpiry = GetTokenExpiry(token);
+            if (tokenExpiry == null) return false;
 
-            var remainingTime = expiryTime.Value - DateTime.UtcNow;
-
-            await _cache.StringSetAsync($"blacklist:{token}", "true", new TimeSpan(remainingTime.Ticks));
-
+            // 1️⃣ Redis'ten access_token ve auth key'lerini sil
             await _cache.KeyDeleteAsync($"access_token:{userId}");
+            await _cache.KeyDeleteAsync($"auth:{token}");  // auth key'ini de silmelisiniz
 
+            // 2️⃣ Refresh token'ı veritabanından sil
             var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.UserId.ToString() == userId);
             if (refreshToken != null)
             {
@@ -171,16 +208,49 @@ namespace AuthServiceAPI.Services
             return true;
         }
 
-        public async Task<bool> IsTokenBlacklisted(string token)
-        {
-            return await _cache.KeyExistsAsync($"blacklist:{token}");
-        }
-
         private DateTime? GetTokenExpiry(string token)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var jwtToken = tokenHandler.ReadToken(token) as JwtSecurityToken;
-            return jwtToken?.ValidTo;
+            
+            try
+            {
+                var jwtToken = tokenHandler.ReadToken(token) as JwtSecurityToken;
+                // JWT token'ı düzgün şekilde çözümlediyse geçerlilik tarihi alınır
+                return jwtToken?.ValidTo;
+            }
+            catch (Exception)
+            {
+                // Token geçerli değilse veya başka bir hata varsa null döner
+                return null;
+            }
         }
+
+         public async Task<TokenValidationResponse?> ValidateTokenAsync(string token)
+        {
+            // Token'ı validate ediyoruz
+            var principal = _jwtTokenValidator.ValidateToken(token);
+
+            if (principal == null)
+            {
+                return null; // Eğer token geçersizse, null döndür
+            }
+
+            // Token geçerli ise, 'sub' (userId) ve 'role' gibi bilgileri alıyoruz
+            var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = principal.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+            {
+                return null; // Eğer userId veya role eksikse, geçersiz olarak kabul edebiliriz
+            }
+            Console.WriteLine( userId, role);
+            return new TokenValidationResponse
+            {
+                UserId = userId,
+                Role = role
+            };
+        }
+
+        
     }
 }

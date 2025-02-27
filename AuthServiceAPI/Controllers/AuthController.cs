@@ -80,6 +80,8 @@ namespace AuthServiceAPI.Controllers
 
         // Kullanıcı çıkış işlemi (Logout)
         // Kullanıcı çıkış işlemi (Logout)
+       // Kullanıcı çıkış işlemi (Logout)
+        // Kullanıcı çıkış işlemi (Logout)
         [HttpPost("logout")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -94,27 +96,25 @@ namespace AuthServiceAPI.Controllers
             return Ok(new { message = "Successfully logged out" });
         }
 
-         [HttpPost("validate")]
-        public IActionResult ValidateToken([FromBody] TokenValidationRequest request)
+
+
+      [HttpPost("validate")]
+        public async Task<IActionResult> ValidateToken([FromBody] TokenValidationRequest request)
         {
-            var claimsPrincipal = _jwtValidator.ValidateToken(request.Token);
-            if (claimsPrincipal == null)
+            var validationResult = await _authService.ValidateTokenAsync(request.Token);
+
+            if (validationResult == null)
             {
-                return Unauthorized(new { message = "Invalid token" });
+                Console.WriteLine("Token validation failed.");
+                return Unauthorized("Invalid token.");
             }
+            
+            Console.WriteLine($"UserId: {validationResult.UserId}, Role: {validationResult.Role}");
+            Console.WriteLine(validationResult); // Check if the validationResponse is not null
 
-            var userId = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var role = claimsPrincipal.FindFirst(ClaimTypes.Role)?.Value;
-
-            return Ok(new { UserId = userId, Role = role });
+            return Ok(validationResult); // This will return UserId and Role in the response
         }
 
-        [HttpGet("is-blacklisted")]
-        public async Task<IActionResult> IsTokenBlacklisted([FromQuery] string token)
-        {
-            bool isBlacklisted = await _authService.IsTokenBlacklisted(token);
-            return Ok(isBlacklisted);
-        }
-
+        
     }
 }

@@ -3,26 +3,18 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using StackExchange.Redis;
 using System.IdentityModel.Tokens.Jwt;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 namespace AuthServiceAPI.Middleware
 {
-    public class TokenValidationMiddleware
+    public class JwtMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly IDatabase _cache;
-        private readonly string _jwtKey;
-        private readonly string _jwtIssuer;
-        private readonly string _jwtAudience;
 
-        public TokenValidationMiddleware(RequestDelegate next, IConnectionMultiplexer redis, IConfiguration configuration)
+        public JwtMiddleware(RequestDelegate next, IConnectionMultiplexer redis)
         {
             _next = next;
             _cache = redis.GetDatabase();
-            _jwtKey = configuration["Jwt:Key"];
-            _jwtIssuer = configuration["Jwt:Issuer"];
-            _jwtAudience = configuration["Jwt:Audience"];
         }
 
         public async Task Invoke(HttpContext context)
@@ -32,7 +24,7 @@ namespace AuthServiceAPI.Middleware
 
             if (!string.IsNullOrEmpty(token))
             {
-                // Token'ı doğrulama
+                // JWT token'ı çözümleyip userId'yi çıkarıyoruz
                 var userId = GetUserIdFromToken(token);
 
                 if (userId != null)
@@ -47,32 +39,16 @@ namespace AuthServiceAPI.Middleware
                         await context.Response.WriteAsync("Token has been revoked or is invalid.");
                         return;
                     }
-
-                    // Token geçerliyse, doğrulama işlemini yapıyoruz
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    try
-                    {
-                        var jwtToken = tokenHandler.ReadToken(token) as JwtSecurityToken;
-
-                        var claimsIdentity = new System.Security.Claims.ClaimsIdentity(jwtToken?.Claims);
-                        context.User = new System.Security.Claims.ClaimsPrincipal(claimsIdentity);
-                    }
-                    catch (Exception)
-                    {
-                        context.Response.StatusCode = 401;
-                        await context.Response.WriteAsync("Invalid token.");
-                        return;
-                    }
                 }
                 else
                 {
-                    context.Response.StatusCode = 401;
+                    context.Response.StatusCode = 401; // Unauthorized
                     await context.Response.WriteAsync("Invalid token.");
                     return;
                 }
             }
 
-            // Token geçerli ise, işlemi devam ettiriyoruz
+            // Token geçerliyse, işlemi devam ettiriyoruz
             await _next(context);
         }
 
@@ -83,7 +59,7 @@ namespace AuthServiceAPI.Middleware
             try
             {
                 var jwtToken = tokenHandler.ReadToken(token) as JwtSecurityToken;
-                var userId = jwtToken?.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+                var userId = jwtToken?.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value; // 'sub' genellikle userId'yi taşır
                 return userId;
             }
             catch

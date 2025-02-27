@@ -148,7 +148,8 @@ builder.Services.AddEndpointsApiExplorer();
 
 
 var app = builder.Build();
-app.UseMiddleware<JwtBlacklistMiddleware>();
+
+
 
 // 📌 Swagger ve UI Ayarları (Sadece Development Ortamında Açık)
 if (app.Environment.IsDevelopment())
@@ -156,8 +157,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<JwtMiddleware>();
 // 📌 Kimlik Doğrulama ve Yetkilendirme Middleware
-app.UseAuthentication();
+//app.UseAuthentication();
 app.UseAuthorization();
 
 

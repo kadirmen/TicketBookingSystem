@@ -10,6 +10,7 @@ using FluentValidation.AspNetCore;
 using AuthServiceAPI.Dtos;
 using AuthServiceAPI.Validators;
 using StackExchange.Redis;
+using AuthServiceAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -79,54 +80,10 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddEndpointsApiExplorer();
 
-// 📌 **JWT Authentication & Redis Blacklist Kontrolü**
+// 📌 **JWT Authentication**
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = async context =>
-            {
-                var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
-                if (!string.IsNullOrEmpty(token))
-                {
-                    var cache = redis.GetDatabase();
-                    
-                    // 📌 **Blacklist Kontrolü**
-                    if (await cache.KeyExistsAsync($"blacklist:{token}"))
-                    {
-                        context.Response.StatusCode = 401;
-                        await context.Response.WriteAsync("Token has been revoked.");
-                        return;
-                    }
-
-                    // 📌 **Token'ı Redis'te Bul ve Kullanıcı Bilgilerini Yükle**
-                    var cachedUser = await cache.StringGetAsync($"auth:{token}");
-                    if (!cachedUser.IsNullOrEmpty)
-                    {
-                        var claims = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(cachedUser);
-                        var identity = new System.Security.Claims.ClaimsIdentity(JwtBearerDefaults.AuthenticationScheme);
-                        foreach (var claim in claims)
-                        {
-                            identity.AddClaim(new System.Security.Claims.Claim(claim.Key, claim.Value));
-                        }
-                        context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
-                        context.Success();
-                    }
-                }
-            },
-            OnTokenValidated = async context =>
-            {
-                var cache = redis.GetDatabase();
-                var token = context.SecurityToken as System.IdentityModel.Tokens.Jwt.JwtSecurityToken;
-                if (token != null)
-                {
-                    var claims = token.Claims.ToDictionary(c => c.Type, c => c.Value);
-                    await cache.StringSetAsync($"auth:{token.RawData}", System.Text.Json.JsonSerializer.Serialize(claims), TimeSpan.FromMinutes(10));
-                }
-            }
-        };
-
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -141,33 +98,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// 📌 **Uygulama Başlatma**
 var app = builder.Build();
 
 // 📌 **Middleware Sıralaması**
+// Swagger arayüzünü kullanabilmek için önce Swagger'ı açıyoruz
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// 📌 **Blacklist Middleware**
-app.Use(async (context, next) =>
-{
-    var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
-    if (!string.IsNullOrEmpty(token))
-    {
-        var cache = redis.GetDatabase();
-        
-        // 📌 **Blacklist Kontrolü**
-        if (await cache.KeyExistsAsync($"blacklist:{token}"))
-        {
-            context.Response.StatusCode = 401;
-            await context.Response.WriteAsync("Token has been revoked.");
-            return;
-        }
-    }
-    await next();
-});
+// 📌 **Token Validation Middleware** - Token doğrulaması yapılacak
+app.UseMiddleware<TokenValidationMiddleware>();
 
+// 📌 **Blacklist Middleware** - Redis'teki geçerliliği kontrol edilecek
+app.UseMiddleware<JwtMiddleware>();
+
+// Kimlik doğrulaması ve yetkilendirme işlemleri
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();
