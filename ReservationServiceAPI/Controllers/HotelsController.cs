@@ -28,13 +28,28 @@ public class HotelsController : ControllerBase
     /// <summary>
     /// Bir oteli hem PostgreSQL hem de ElasticSearch'e kaydeder.
     /// </summary>
-    [HttpPost("postgresql-and-elastic-save")]
+    [HttpPost("add-hotel-postgresql-and-elastic-save")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateHotelWithElastic([FromBody] Hotel hotel)
     {
         var success = await _hotelsService.IndexHotelAsync(hotel);
         return success ? CreatedAtAction(nameof(GetHotelById), new { id = hotel.Id }, hotel) : BadRequest("Otel kaydedilemedi.");
     }
+
+
+    [HttpPost("add-hotels-postgresql-and-elassatic-save")]
+        [Authorize(Roles = "Admin")]
+      public async Task<IActionResult> AddHotelsAsync([FromBody] List<Hotel> hotels)
+    {
+        bool result = await _hotelsService.IndexHotelsAsync(hotels);
+        if (result)
+        {
+            return Ok("Tüm oteller başarıyla eklendi.");
+        }
+        return BadRequest("Oteller eklenirken bir hata oluştu.");
+    }
+
+
 
     /// <summary>
     /// PostgreSQL'deki tüm otelleri getirir.

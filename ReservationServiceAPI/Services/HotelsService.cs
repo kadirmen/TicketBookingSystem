@@ -43,6 +43,29 @@ public class HotelsService : IHotelsService
         }
     }
 
+        public async Task<bool> IndexHotelsAsync(List<Hotel> hotels)
+        {
+            try
+            {
+                // 1️⃣ Tüm otelleri PostgreSQL'e kaydet
+                _dbContext.Hotels.AddRange(hotels);
+                await _dbContext.SaveChangesAsync();
+
+                // 2️⃣ Her bir otel için RabbitMQ aracılığıyla otel ekleme mesajını gönder
+                foreach (var hotel in hotels)
+                {
+                    _rabbitMQPublisher.PublishAddHotelEvent(hotel);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Hata (IndexHotelsAsync): {ex.Message}");
+                return false;
+            }
+        }
+
 
     /// <summary>
     /// Elasticsearch'te otel arama işlemi.
