@@ -85,6 +85,7 @@ public class HotelsService : IHotelsService
                             .Field(h => h.Amenities)
                         )
                         .Query(keyword)
+                        .Fuzziness(Fuzziness.Auto)
                     )
                 )
             );
