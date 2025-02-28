@@ -47,25 +47,28 @@ public class HotelsService : IHotelsService
     /// <summary>
     /// Elasticsearch'te otel arama işlemi.
     /// </summary>
-    public async Task<List<Hotel>> SearchHotelsAsync(string keyword)
-    {
-        var response = await _elasticClient.SearchAsync<Hotel>(s => s
-            .Index(IndexName)
-            .Query(q => q
-                .MultiMatch(m => m
-                    .Fields(f => f
-                        .Field(h => h.Name)
-                        .Field(h => h.Location)
-                        .Field(h => h.Tags)
-                        .Field(h => h.Amenities)//sonradan ekledim**
+     public async Task<List<Hotel>> SearchHotelsAsync(string keyword, int page = 1, int pageSize = 3)
+        {
+            var response = await _elasticClient.SearchAsync<Hotel>(s => s
+                .Index(IndexName)
+                .From((page - 1) * pageSize) // Sayfanın başlangıç noktası
+                .Size(pageSize) // Sayfada kaç kayıt göstereceğimizi belirliyoruz
+                .Query(q => q
+                    .MultiMatch(m => m
+                        .Fields(f => f
+                            .Field(h => h.Name)
+                            .Field(h => h.Location)
+                            .Field(h => h.Tags)
+                            .Field(h => h.Amenities)
+                        )
+                        .Query(keyword)
                     )
-                    .Query(keyword)
                 )
-            )
-        );
+            );
 
-        return response.Documents.ToList();
-    }
+            return response.Documents.ToList();
+        }
+
 
     /// <summary>
     /// Tüm otelleri getir: PostgreSQL'den çekilir.

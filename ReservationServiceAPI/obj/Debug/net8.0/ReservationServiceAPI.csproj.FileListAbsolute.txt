@@ -163,7 +163,9 @@
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Newtonsoft.Json.dll
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Npgsql.dll
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Npgsql.EntityFrameworkCore.PostgreSQL.dll
+/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Pipelines.Sockets.Unofficial.dll
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/RabbitMQ.Client.dll
+/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/StackExchange.Redis.dll
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Swashbuckle.AspNetCore.Swagger.dll
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Swashbuckle.AspNetCore.SwaggerGen.dll
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Swashbuckle.AspNetCore.SwaggerUI.dll
@@ -240,5 +242,3 @@
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/obj/Debug/net8.0/ReservationServiceAPI.pdb
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/obj/Debug/net8.0/ReservationServiceAPI.genruntimeconfig.cache
 /Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/obj/Debug/net8.0/ref/ReservationServiceAPI.dll
-/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/Pipelines.Sockets.Unofficial.dll
-/Users/babax/Desktop/TicketBookingSystem/ReservationServiceAPI/bin/Debug/net8.0/StackExchange.Redis.dll

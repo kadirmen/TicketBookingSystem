@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 public interface IHotelsService
 {
     Task<bool> IndexHotelAsync(Hotel hotel);
-    Task<List<Hotel>> SearchHotelsAsync(string keyword);
+    Task<List<Hotel>> SearchHotelsAsync(string keyword,int page,int pageSize);
     Task<List<Hotel>> GetAllHotelsAsync();
     Task<Hotel?> GetHotelByIdAsync(string id); // Yeni metod
     Task<bool> UpdateHotelAsync(Hotel hotel);

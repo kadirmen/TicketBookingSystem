@@ -63,12 +63,20 @@ public class HotelsController : ControllerBase
     /// ElasticSearch üzerinde otel araması yapar.
     /// </summary>
     [HttpGet("search-with-elastic")]
-    [Authorize(Roles = "User,Admin")]
-    public async Task<IActionResult> SearchHotels([FromQuery] string keyword)
-    {
-        var hotels = await _hotelsService.SearchHotelsAsync(keyword);
-        return Ok(hotels);
-    }
+        [Authorize(Roles = "User,Admin")]
+        public async Task<IActionResult> SearchHotels([FromQuery] string keyword, int? page, int? pageSize)
+        {
+           int size = pageSize ?? 2;
+           int pages = page ?? 1;
+
+            var hotels = await _hotelsService.SearchHotelsAsync(keyword, pages, size);
+             if (hotels == null || !hotels.Any()) 
+                {
+                    return NotFound("No hotels found matching the search criteria.");
+                }
+            return Ok(hotels); // HTTP 200 OK döndür ve otel listesini JSON olarak gönder
+        }
+
 
     /// <summary>
     /// PostgreSQL'deki tüm otelleri ElasticSearch'e taşır.

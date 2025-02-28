@@ -186,18 +186,28 @@ namespace AuthServiceAPI.Services
         }
 
     
-
-        public async Task<bool> Logout(string userId, string token)
+       public async Task<bool> Logout(string userId, string token)
         {
-            // Token'ın süresi dolmuşsa, herhangi bir işlem yapmaya gerek yok
+            // Token'ın süresi dolmuşsa işlem yapmaya gerek yok
             var tokenExpiry = GetTokenExpiry(token);
             if (tokenExpiry == null) return false;
 
-            // 1️⃣ Redis'ten access_token ve auth key'lerini sil
-            await _cache.KeyDeleteAsync($"access_token:{userId}");
-            await _cache.KeyDeleteAsync($"auth:{token}");  // auth key'ini de silmelisiniz
+            // Redis’ten access_token:{userId} anahtarını oku
+            var storedToken = await _cache.StringGetAsync($"access_token:{userId}");
+            Console.WriteLine($"Redis'teki token: {storedToken}");
 
-            // 2️⃣ Refresh token'ı veritabanından sil
+            // Eğer Redis’te kayıtlı token yoksa veya eşleşmiyorsa çıkışı reddet
+            if (storedToken.IsNullOrEmpty || storedToken != token)
+            {
+                Console.WriteLine("Token geçerli değil veya Redis'te yok.");
+                return false;
+            }
+
+            // Token eşleşiyorsa, Redis’ten access_token ve auth key’lerini sil
+            await _cache.KeyDeleteAsync($"access_token:{userId}");
+            await _cache.KeyDeleteAsync($"auth:{token}");
+
+            // Refresh token veritabanında var mı kontrol et ve varsa sil
             var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.UserId.ToString() == userId);
             if (refreshToken != null)
             {
@@ -205,8 +215,12 @@ namespace AuthServiceAPI.Services
                 await _context.SaveChangesAsync();
             }
 
+            Console.WriteLine("Çıkış başarılı, token silindi.");
             return true;
         }
+
+
+
 
         private DateTime? GetTokenExpiry(string token)
         {

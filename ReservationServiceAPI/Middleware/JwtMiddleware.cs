@@ -26,7 +26,7 @@ namespace ReservationServiceAPI.Middleware
     public async Task Invoke(HttpContext context)
     {
        var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
-        Console.WriteLine("1");
+        Console.WriteLine("1 çözümledik");
 
         if (!string.IsNullOrEmpty(token))
         {
@@ -35,11 +35,11 @@ namespace ReservationServiceAPI.Middleware
 
             if (userId != null)
             {
-                // 🔥 1️⃣ Redis’te access_token:{userId} anahtarını oku
+                // Redis’te access_token:{userId} anahtarını oku
                 var storedToken = await _cache.StringGetAsync($"access_token:{userId}");
                 Console.WriteLine($"Redis'teki token: {storedToken}");
 
-                // 🔥 2️⃣ Eğer Redis’te kayıtlı token yoksa veya eşleşmiyorsa, erişimi engelle
+                // Eğer Redis’te kayıtlı token yoksa veya eşleşmiyorsa, erişimi engelle
                 if (storedToken.IsNullOrEmpty || storedToken != token)
                 {
                     context.Response.StatusCode = 401; // Unauthorized
@@ -64,7 +64,7 @@ namespace ReservationServiceAPI.Middleware
         {
             // 2️⃣ Redis'te token varsa, doğrulama için AuthServiceAPI'ye istek gönder
             var response = await _httpClient.PostAsJsonAsync("http://localhost:5192/api/auth/validate", new { Token = token });
-                    Console.WriteLine(" Rediste token vardı Bu tokeni auth a gömnderdik.");
+                    Console.WriteLine(" Rediste token vardı ve Bu tokeni authservice a gömnderdik. yanıt: ");
                     Console.WriteLine(response);
 
 
@@ -75,7 +75,6 @@ namespace ReservationServiceAPI.Middleware
                 return;
             }
 
-            // 3️⃣ Doğrulama sonucunu alıp, Redis Cache'e kaydet
             var validationResponse = await response.Content.ReadFromJsonAsync<TokenValidationResponse>();
 
             if (validationResponse == null)
